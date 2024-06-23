@@ -1,17 +1,17 @@
 import {Getter, inject} from '@loopback/core';
 import {DefaultCrudRepository, HasOneRepositoryFactory, repository} from '@loopback/repository';
 import {PgsqldbDataSource} from '../datasources';
-import {UserProfiles, UserStatistics, User, UserRelations} from '../models';
-import { UserStatisticsRepository } from './user-statistics.repository';
-import { UserProfilesRepository } from './user-profiles.repository';
+import {User, UserProfiles, UserRelations, UserStatistics} from '../models';
+import {UserProfilesRepository} from './user-profiles.repository';
+import {UserStatisticsRepository} from './user-statistics.repository';
 
 export class UserRepository extends DefaultCrudRepository<
   User,
-  typeof User.prototype.userId,
+  typeof User.prototype.id,
   UserRelations
 > {
-  public readonly userProfile: HasOneRepositoryFactory<UserProfiles, typeof User.prototype.userId>;
-  public readonly userStatistics: HasOneRepositoryFactory<UserStatistics, typeof User.prototype.userId>;
+  public readonly userProfile: HasOneRepositoryFactory<UserProfiles, typeof User.prototype.id>;
+  public readonly userStatistics: HasOneRepositoryFactory<UserStatistics, typeof User.prototype.id>;
 
   constructor(
     @inject('datasources.pgsqldb') dataSource: PgsqldbDataSource,

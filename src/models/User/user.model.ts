@@ -1,69 +1,50 @@
 import {Entity, hasOne, model, property} from '@loopback/repository';
-import { UserProfiles } from './user-profiles.model';
-import { UserStatistics } from './user-statistics.model';
+import {UserProfiles, UserProfilesWithRelations} from './user-profiles.model';
+import {UserStatistics, UserStatisticsWithRelations} from './user-statistics.model';
 
 @model({settings: {idInjection: false, postgresql: {schema: 'dartz', table: 'users'}}})
 export class User extends Entity {
-  @hasOne(() => UserProfiles)
-  userProfile: UserProfiles;
-
-  @hasOne(() => UserStatistics)
-  userStatistics: UserStatistics;
-
   @property({
     type: 'number',
-    required: false,
-    jsonSchema: {nullable: false},
-    scale: 0,
+    id: true,
     generated: true,
-    id: 1,
-    postgresql: {columnName: 'id', dataType: 'integer', dataLength: null, dataPrecision: null, dataScale: 0, nullable: 'NO', generated: true},
+    postgresql: {columnName: 'id', dataType: 'integer', nullable: 'NO'},
   })
   id: number;
 
   @property({
     type: 'string',
     required: true,
-    jsonSchema: {nullable: false},
-    length: 255,
-    generated: false,
-    postgresql: {columnName: 'username', dataType: 'character varying', dataLength: 255, dataPrecision: null, dataScale: null, nullable: 'NO', generated: false},
+    postgresql: {columnName: 'username', dataType: 'character varying', nullable: 'NO'},
   })
   username: string;
 
   @property({
     type: 'string',
     required: true,
-    jsonSchema: {nullable: false},
-    length: 255,
-    generated: false,
-    postgresql: {columnName: 'email', dataType: 'character varying', dataLength: 255, dataPrecision: null, dataScale: null, nullable: 'NO', generated: false},
+    postgresql: {columnName: 'email', dataType: 'character varying', nullable: 'NO'},
   })
   email: string;
 
   @property({
     type: 'string',
     required: true,
-    jsonSchema: {nullable: false},
-    length: 255,
-    generated: false,
-    postgresql: {columnName: 'password_hash', dataType: 'character varying', dataLength: 255, dataPrecision: null, dataScale: null, nullable: 'NO', generated: false},
+    postgresql: {columnName: 'password_hash', dataType: 'character varying', nullable: 'NO'},
   })
   passwordHash: string;
 
   @property({
     type: 'string',
-    jsonSchema: {nullable: false},
-    generated: false,
-    postgresql: {columnName: 'role', dataType: 'string', dataLength: null, dataPrecision: null, dataScale: null, nullable: 'FALSE', generated: false},
+    required: true,
+    postgresql: {columnName: 'role', dataType: 'character varying', nullable: 'NO'},
   })
   role: string;
 
-  // Define well-known properties here
+  @hasOne(() => UserProfiles, {keyTo: 'userId'})
+  userProfile: UserProfiles;
 
-  // Indexer property to allow additional data
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [prop: string]: any;
+  @hasOne(() => UserStatistics, {keyTo: 'userId'})
+  userStatistics: UserStatistics;
 
   constructor(data?: Partial<User>) {
     super(data);
@@ -71,7 +52,11 @@ export class User extends Entity {
 }
 
 export interface UserRelations {
-  // describe navigational properties here
+  userProfile?: UserProfilesWithRelations;
+  userStatistics?: UserStatisticsWithRelations;
 }
 
 export type UserWithRelations = User & UserRelations;
+
+// Define the UserWithExcludedFields type to exclude passwordHash
+export type UserWithExcludedFields = Omit<UserWithRelations, 'passwordHash'>;

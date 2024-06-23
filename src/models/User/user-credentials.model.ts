@@ -4,8 +4,6 @@ import {Model, model, property} from '@loopback/repository';
 export class UserCredentials extends Model {
   @property({
     type: 'string',
-    id: true,
-    generated: false,
     required: true,
   })
   email: string;
@@ -15,7 +13,6 @@ export class UserCredentials extends Model {
     required: true,
   })
   password: string;
-
 
   constructor(data?: Partial<UserCredentials>) {
     super(data);

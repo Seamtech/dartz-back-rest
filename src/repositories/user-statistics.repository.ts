@@ -5,7 +5,7 @@ import {UserStatistics, UserStatisticsRelations} from '../models';
 
 export class UserStatisticsRepository extends DefaultCrudRepository<
   UserStatistics,
-  typeof UserStatistics.prototype.statsId,
+  typeof UserStatistics.prototype.userId,
   UserStatisticsRelations
 > {
   constructor(

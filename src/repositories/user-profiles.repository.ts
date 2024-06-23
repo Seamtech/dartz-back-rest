@@ -5,7 +5,7 @@ import {UserProfiles, UserProfilesRelations} from '../models';
 
 export class UserProfilesRepository extends DefaultCrudRepository<
   UserProfiles,
-  typeof UserProfiles.prototype.profileId,
+  typeof UserProfiles.prototype.userId,
   UserProfilesRelations
 > {
   constructor(

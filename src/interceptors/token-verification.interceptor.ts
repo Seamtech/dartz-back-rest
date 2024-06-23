@@ -1,33 +1,45 @@
-// src/interceptors/token-verification.interceptor.ts
-import {inject} from '@loopback/context';
-import {Interceptor, InvocationContext, InvocationResult, Provider, ValueOrPromise} from '@loopback/core';
-import {HttpErrors, Request, RestBindings} from '@loopback/rest';
-import {JwtService} from '../services/authentication-strategies/jwt.service';
+import { inject, Interceptor, InvocationContext, InvocationResult, Provider, ValueOrPromise } from '@loopback/core';
+import { HttpErrors, Request, RestBindings } from '@loopback/rest';
+import { TokenBlacklistedError, TokenExpiredError, TokenInvalidError } from '../errors/jwt-errors';
+import { JwtService } from '../services/authentication-strategies/jwt.service';
+import { parseCookies } from '../utils/cookie-parser';
+
+const USER_PROFILE_KEY = 'userProfile';
 
 export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
   constructor(
     @inject('services.JwtService') private jwtService: JwtService,
     @inject(RestBindings.Http.REQUEST) private request: Request
-  ) { }
+  ) {}
 
   value() {
     return this.intercept.bind(this);
   }
 
   async intercept(context: InvocationContext, next: () => ValueOrPromise<InvocationResult>): Promise<InvocationResult> {
+    console.log('Intercepting request for token authorization...');
+
+    const token = this.extractAccessTokenFromRequest(this.request);
+    if (!token) {
+      console.log('Access token is missing.');
+      throw new HttpErrors.Unauthorized('Access token is missing. Please log in again.');
+    }
+
+    console.log('Access token found:', token);
+
     try {
-      const token: string | undefined = this.extractTokenFromRequest(this.request);
       const userProfile = await this.jwtService.verifyToken(token);
+      console.log('Token verified successfully:', userProfile);
       context.bind('userProfile').to(userProfile);
     } catch (error) {
-      // Handle different types of errors
-      if (error.message === 'Invalid Authorization Header') {
-        throw new HttpErrors.Unauthorized('Authorization header is missing or not in the correct format.');
-      } else if (error.name === 'JsonWebTokenError') {
-        throw new HttpErrors.Unauthorized('Invalid token.');
+      console.error('Error during token verification:', error);
+      if (error instanceof TokenBlacklistedError) {
+        throw new HttpErrors.Unauthorized('The token is blacklisted. Please log in again.');
+      } else if (error instanceof TokenExpiredError) {
+        throw new HttpErrors.Unauthorized('The token has expired. Please log in again.');
+      } else if (error instanceof TokenInvalidError) {
+        throw new HttpErrors.Unauthorized('The token is invalid. Please log in again.');
       } else {
-        // Log the error for debugging purposes and throw a generic 500 error
-        console.error('Internal server error:', error);
         throw new HttpErrors.InternalServerError('Internal server error.');
       }
     }
@@ -35,11 +47,19 @@ export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
     return next();
   }
 
-  private extractTokenFromRequest(request: Request): string {
-    const authHeader = request.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-      return authHeader.substring(7);
+  private extractAccessTokenFromRequest(request: Request): string | undefined {
+    console.log('Extracting access token from request...');
+    const cookies = request.headers.cookie;
+    if (cookies) {
+      const accessToken = parseCookies(cookies)['accessToken'];
+      if (accessToken) return accessToken;
     }
-    throw new Error('Invalid Authorization Header');
+
+    const apiAccessToken = request.headers['x-api-access-token'] || '';
+    if (apiAccessToken) {
+      // return apiAccessToken;
+    }
+
+    return undefined;
   }
 }

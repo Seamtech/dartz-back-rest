@@ -1,11 +1,5 @@
-import {inject} from '@loopback/core';
-import {
-  Request,
-  RestBindings,
-  get,
-  response,
-  ResponseObject,
-} from '@loopback/rest';
+import {inject, intercept} from '@loopback/core';
+import {Request, ResponseObject, RestBindings, get, response} from '@loopback/rest';
 
 /**
  * OpenAPI response for ping()
@@ -38,9 +32,10 @@ const PING_RESPONSE: ResponseObject = {
  * A simple controller to bounce back http requests
  */
 export class PingController {
-  constructor(@inject(RestBindings.Http.REQUEST) private req: Request) {}
+  constructor(@inject(RestBindings.Http.REQUEST) private req: Request) { }
 
   // Map to `GET /ping`
+  @intercept('interceptors.TokenAuthorizationInterceptor') // Token validation interceptor
   @get('/ping')
   @response(200, PING_RESPONSE)
   ping(): object {

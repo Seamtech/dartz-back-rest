@@ -1,12 +1,3 @@
-import {
-    MiddlewareSequence,
-    RequestContext,
-    SequenceHandler,
-  } from '@loopback/rest';
-  
-  export class MySequence extends MiddlewareSequence implements SequenceHandler {
-    async handle(context: RequestContext) {
+import { MiddlewareSequence } from '@loopback/rest';
 
-      await super.handle(context);
-    }
-  }
+export class MySequence extends MiddlewareSequence {}

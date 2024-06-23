@@ -1,23 +1,22 @@
-import { BootMixin } from '@loopback/boot';
-import { ApplicationConfig } from '@loopback/core';
+import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
+import {JWTAuthenticationComponent, MyUserService, SECURITY_SCHEME_SPEC} from '@loopback/authentication-jwt';
+import {BootMixin} from '@loopback/boot';
+import {ApplicationConfig} from '@loopback/core';
+import {RepositoryMixin} from '@loopback/repository';
+import {MiddlewareSequence, RestApplication} from '@loopback/rest';
 import {
   RestExplorerBindings,
   RestExplorerComponent,
 } from '@loopback/rest-explorer';
-import { RepositoryMixin } from '@loopback/repository';
-import { RestApplication } from '@loopback/rest';
-import { ServiceMixin } from '@loopback/service-proxy';
+import {ServiceMixin} from '@loopback/service-proxy';
 import path from 'path';
-import { MySequence } from './sequence';
-import { AuthenticationComponent } from '@loopback/authentication';
-import { JWTAuthenticationComponent, MyUserService, SECURITY_SCHEME_SPEC } from '@loopback/authentication-jwt';
-import { JwtService } from './services/authentication-strategies/jwt.service'
-import { RoleAuthorizationInterceptor } from './interceptors/role.interceptor';
-import { TokenAuthorizationInterceptor } from './interceptors/token-verification.interceptor';
-import { AuthorizationService } from './services/role-auth.service';
-//import { ApiKeyStrategy } from './services/authentication-strategies/api-key.service';
+import {RoleAuthorizationInterceptor} from './interceptors/role.interceptor';
+import {TokenAuthorizationInterceptor} from './interceptors/token-verification.interceptor';
+import {ApiKeyStrategy} from './services/authentication-strategies/api-key.service';
+import {JwtService} from './services/authentication-strategies/jwt.service';
+import {AuthorizationService} from './services/role-auth.service';
 
-export { ApplicationConfig };
+export {ApplicationConfig};
 
 export class DartzBackendApplication extends BootMixin(
   ServiceMixin(RepositoryMixin(RestApplication)),
@@ -25,8 +24,12 @@ export class DartzBackendApplication extends BootMixin(
   constructor(options: ApplicationConfig = {}) {
     super(options);
 
+    this.basePath('/api');
 
-    // setup bindings
+    // Set the sequence
+    this.sequence(MiddlewareSequence);
+
+    // Setup bindings
     this.setupBindings();
 
     // Add security specifications
@@ -36,18 +39,17 @@ export class DartzBackendApplication extends BootMixin(
     this.component(AuthenticationComponent);
     this.component(JWTAuthenticationComponent);
 
-    // Register Custom Authentication Strategy (uncomment if you have a custom strategy)
-    // registerAuthenticationStrategy(this, ApiKeyStrategy);
+    // Register Custom Authentication Strategy
+    registerAuthenticationStrategy(this, ApiKeyStrategy);
 
-    // Set up the custom sequence
-    this.sequence(MySequence);
-
-    // Set up default home page
+    // Set up the default home page
     this.static('/', path.join(__dirname, '../public'));
 
     // Customize @loopback/rest-explorer configuration here
     this.configure(RestExplorerBindings.COMPONENT).to({
       path: '/explorer',
+      useSelfHostedSpec: true,
+      openApiSpecUrl: '/openapi.json',
     });
     this.component(RestExplorerComponent);
 
@@ -60,46 +62,45 @@ export class DartzBackendApplication extends BootMixin(
         extensions: ['.controller.js'],
         nested: true,
       },
-
     };
+
+    // Register interceptors
+    this.interceptor(TokenAuthorizationInterceptor);
+    this.interceptor(RoleAuthorizationInterceptor);
   }
 
   setupBindings(): void {
-    //Classes
+    // Services
     this.bind('services.UserService').toClass(MyUserService);
     this.bind('services.JwtService').toClass(JwtService);
     this.bind('services.AuthorizationService').toClass(AuthorizationService);
-    //Interceptors
-    this.bind('interceptors.RoleAuthorizationInterceptor').toProvider(RoleAuthorizationInterceptor);
-    this.bind('interceptors.TokenAuthorizationInterceptor').toProvider(TokenAuthorizationInterceptor);
-    //this.bind('authentication.apiKey').to(process.env.BACKEND_API_KEY);
-    // this.bind('authentication.strategies.apiKeyStrategy').toClass(ApiKeyStrategy);
+
+    // Authentication
+    this.bind('authentication.apiKey').to(process.env.BACKEND_API_KEY);
+    this.bind('authentication.strategies.apiKeyStrategy').toClass(ApiKeyStrategy);
   }
 
   addSecuritySpec() {
     this.api({
       openapi: '3.0.0',
-      // ... other spec details
-      components: {
-        securitySchemes: SECURITY_SCHEME_SPEC
-      },
-      // Define global security requirement
       info: {
-        title: 'My Awesome API',
+        title: 'DartzBackend API',
         version: '1.0.0',
-        description: 'This API does amazing things.',
-        termsOfService: 'http://onlinedartz.com/terms/',
+        description: 'DartZ Backend',
         contact: {
-          name: 'API Support',
-          url: 'http://www.onlinedartz.com/support',
-          email: 'support@example.com',
-        },
-        license: {
-          name: '',
-          url: '',
-        },
+          name: 'Seamtech',
+          email: 'danseam@outlook.com'
+        }
       },
       paths: {},
+      components: {
+        securitySchemes: SECURITY_SCHEME_SPEC,
+      },
+      security: [
+        {
+          jwt: [],
+        },
+      ],
     });
   }
 }

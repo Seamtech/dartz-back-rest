@@ -1,11 +1,13 @@
-import {ApplicationConfig, DartzBackendApplication} from './application';
 import * as dotenv from 'dotenv';
+import {ApplicationConfig, DartzBackendApplication} from './application';
+import {initializeRedis} from './config/redis.config';
 
 dotenv.config();
 export * from './application';
 
 export async function main(options: ApplicationConfig = {}) {
   const app = new DartzBackendApplication(options);
+  await initializeRedis();
   await app.boot();
   await app.start();
 
@@ -18,18 +20,21 @@ export async function main(options: ApplicationConfig = {}) {
 
 if (require.main === module) {
   // Run the application
-  const config = {
+  const config: ApplicationConfig = {
     rest: {
-      port: +(process.env.PORT ?? 3000),
+      cors: {
+        origin: 'http://localhost:3000', // Allow your frontend origin
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
+        allowedHeaders: 'Content-Type,Authorization',
+        credentials: true,
+        maxAge: 86400,
+      },
+      port: +(process.env.PORT ?? 3001),
       host: process.env.HOST,
-      // The `gracePeriodForClose` provides a graceful close for http/https
-      // servers with keep-alive clients. The default value is `Infinity`
-      // (don't force-close). If you want to immediately destroy all sockets
-      // upon stop, set its value to `0`.
-      // See https://www.npmjs.com/package/stoppable
       gracePeriodForClose: 5000, // 5 seconds
       openApiSpec: {
-        // useful when used with OpenAPI-to-GraphQL to locate your application
         setServersFromRequest: true,
       },
     },

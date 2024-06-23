@@ -21,7 +21,6 @@ export class UserSignup extends Model {
   })
   password: string;
 
-  
   // Fields from UserProfiles model (assuming they are required)
   @property({
     type: 'string',
@@ -78,16 +77,10 @@ export class UserSignup extends Model {
   bsLiveCode?: string;
 
   @property({
-    type: 'string',
+    type: 'number',
     required: false,
   })
   location: number;
-  // Add other required fields from UserProfiles...
-  
-  // Fields from UserStatistics model (assuming some required fields)
-  // Add required fields from UserStatistics if any...
-  
-  // Add any other fields that are necessary for the signup process
 
   constructor(data?: Partial<UserSignup>) {
     super(data);
