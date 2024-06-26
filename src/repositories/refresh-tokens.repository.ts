@@ -2,7 +2,7 @@ import {inject, Getter} from '@loopback/core';
 import {DefaultCrudRepository, repository, BelongsToAccessor} from '@loopback/repository';
 import {PgsqldbDataSource} from '../datasources';
 import {RefreshTokens, RefreshTokensRelations, User} from '../models';
-import {UserRepository} from './user.repository'; // Import UserRepository
+import {UserRepository} from './User/user.repository'; // Import UserRepository
 
 export class RefreshTokensRepository extends DefaultCrudRepository<
   RefreshTokens,

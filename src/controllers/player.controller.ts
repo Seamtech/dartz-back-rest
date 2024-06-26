@@ -1,27 +1,24 @@
-import {repository} from '@loopback/repository';
-import {get, param, put, requestBody, HttpErrors} from '@loopback/rest';
-import {UserRepository, UserProfilesRepository} from '../repositories';
-import {UserWithExcludedFields, UserProfiles, User} from '../models';
-import {intercept} from '@loopback/core';
+import { repository } from '@loopback/repository';
+import { get, param, HttpErrors } from '@loopback/rest';
+import { PlayerProfileRepository } from '../repositories';
+import { PlayerProfile } from '../models';
 
 export class PlayerController {
   constructor(
-    @repository(UserRepository)
-    public userRepository: UserRepository,
-    @repository(UserProfilesRepository)
-    public userProfilesRepository: UserProfilesRepository,
+    @repository(PlayerProfileRepository)
+    public playerProfileRepository: PlayerProfileRepository,
   ) {}
 
   @get('/findPlayer', {
     responses: {
       '200': {
-        description: 'Array of User model instances',
+        description: 'Array of PlayerProfile model instances',
         content: {
           'application/json': {
             schema: {
               type: 'array',
               items: {
-                'x-ts-type': 'UserWithExcludedFields',
+                'x-ts-type': PlayerProfile,
               },
             },
           },
@@ -32,8 +29,9 @@ export class PlayerController {
   async findPlayer(
     @param.query.string('type') type: string,
     @param.query.string('value') value: string,
-  ): Promise<UserWithExcludedFields[]> {
+  ): Promise<any[]> {
     try {
+      console.log('Find player called with type:', type, 'and value:', value);
       const filter: any = {};
       if (type === 'id') {
         filter.id = parseInt(value, 10);
@@ -46,107 +44,37 @@ export class PlayerController {
         throw new HttpErrors.BadRequest('Invalid search type');
       }
 
-      const users = await this.userRepository.find({
+      console.log('Filter:', filter);
+
+      const playerProfiles = await this.playerProfileRepository.find({
         where: filter,
-        include: ['userProfile', 'userStatistics'],
-        fields: {
-          passwordHash: false,
-        },
+        include: [
+          { relation: 'playerStatistics' },
+          { relation: 'playerAverageStatistics' },
+        ],
       });
 
-      if (!users.length) {
-        throw new HttpErrors.NotFound('User not found');
+      if (!playerProfiles.length) {
+        throw new HttpErrors.NotFound('Player not found');
       }
-      
-      return users;
+
+      // Flatten the response, if necessary, or adjust according to the required output format
+      const detailedPlayers = playerProfiles.map(profile => ({
+        ...profile.playerStatistics,
+        ...profile.playerAverageStatistics,
+        username: profile.username,
+        email: profile.email,
+        mobileNumber: profile.mobileNumber,
+        id: profile.id,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      }));
+
+      console.log('Detailed players:', detailedPlayers);
+      return detailedPlayers;
     } catch (error) {
-      if (error instanceof HttpErrors.HttpError) {
-        throw error;
-      }
+      console.error('Error finding player:', error);
       throw new HttpErrors.InternalServerError(`Error finding player: ${error.message}`);
-    }
-  }
-
-  @intercept('interceptors.TokenAuthorizationInterceptor')
-  @put('/updateProfile', {
-    responses: {
-      '200': {
-        description: 'User profile updated',
-        content: {
-          'application/json': {
-            schema: {
-              'x-ts-type': UserProfiles,
-            },
-          },
-        },
-      },
-    },
-  })
-  async updateProfile(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              userId: { type: 'number' },
-              username: { type: 'string' },
-              email: { type: 'string' },
-              mobileNumber: { type: 'string' },
-              address1: { type: 'string' },
-              address2: { type: 'string' },
-              city: { type: 'string' },
-              state: { type: 'string' },
-              bsLiveCode: { type: 'string' },
-            },
-            required: ['userId'],
-          },
-        },
-      },
-    }) profileData: Partial<UserProfiles & { userId: number } & { username: string, email: string }>,
-  ): Promise<void> {
-    const { userId, username, email, ...updateData } = profileData;
-
-    if (!userId) {
-      throw new HttpErrors.BadRequest('userId is required');
-    }
-
-    try {
-      const user = await this.userRepository.findById(userId);
-      if (!user) {
-        throw new HttpErrors.NotFound('User not found');
-      }
-
-      if (username) {
-        const existingUser = await this.userRepository.findOne({ where: { username } });
-        if (existingUser && existingUser.id !== userId) {
-          throw new HttpErrors.Conflict('Username already exists');
-        }
-      }
-
-      if (email) {
-        const existingEmailUser = await this.userRepository.findOne({ where: { email } });
-        if (existingEmailUser && existingEmailUser.id !== userId) {
-          throw new HttpErrors.Conflict('Email already exists');
-        }
-      }
-
-      // Update the User entity with username and email
-      await this.userRepository.updateById(userId, { username, email });
-
-      // Update the UserProfiles entity with other profile data
-      await this.userProfilesRepository.updateById(userId, updateData);
-    } catch (error) {
-      if (error.message.includes('Username already exists')) {
-        throw new HttpErrors.Conflict('Username already exists');
-      }
-      if (error.message.includes('Email already exists')) {
-        throw new HttpErrors.Conflict('Email already exists');
-      }
-      if (error.code === 'ENTITY_NOT_FOUND') {
-        throw new HttpErrors.NotFound('User not found');
-      }
-      throw new HttpErrors.InternalServerError(`Error updating profile: ${error.message}`);
     }
   }
 }

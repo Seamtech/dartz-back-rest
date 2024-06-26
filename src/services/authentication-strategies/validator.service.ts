@@ -2,14 +2,14 @@ import { UserCredentialsWithRelations } from '../../models/User/user-credentials
 
 export class ValidatorService {
   static validateCredentials(credentials: UserCredentialsWithRelations): void {
-    const { email, password } = credentials;
+    const { emailOrUsername, password } = credentials;
 
-    if (!email || !password) {
-      throw new Error('Missing Email or Password');
+    if (!emailOrUsername || !password) {
+      throw new Error('Missing Email/Username or Password');
     }
 
-    if (!ValidatorService.isValidEmail(email)) {
-      throw new Error('Invalid Email format');
+    if (!ValidatorService.isValidEmailOrUsername(emailOrUsername)) {
+      throw new Error('Invalid Email/Username format');
     }
 
     if (!ValidatorService.isStrongPassword(password)) {
@@ -17,13 +17,19 @@ export class ValidatorService {
     }
   }
 
-  private static isValidEmail(email: string): boolean {
-    // Implement email validation logic
-    return true;
+  private static isValidEmailOrUsername(emailOrUsername: string): boolean {
+    // Simple email regex for demonstration purposes
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Simple username regex (alphanumeric and underscores, 3-16 characters)
+    const usernameRegex = /^[a-zA-Z0-9_]{3,16}$/;
+
+    return emailRegex.test(emailOrUsername) || usernameRegex.test(emailOrUsername);
   }
 
   private static isStrongPassword(password: string): boolean {
-    // Implement password strength validation logic
-    return true;
+    // Example password strength validation
+    //const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    //return strongPasswordRegex.test(password);
+    return password.length >= 6;
   }
 }

@@ -9,12 +9,7 @@ import {
 } from '../../errors/jwt-errors';
 import {ConfigurationService} from '../configuration.service';
 import {TokenBlacklistService} from './jwt-blacklist.service';
-
-interface CustomUserProfile extends UserProfile {
-  username: string;
-  email: string;
-  role: string;
-}
+import {CustomUserProfile} from '../../types/user-types';
 
 @injectable({
   scope: BindingScope.TRANSIENT,
@@ -79,6 +74,7 @@ export class JwtService implements TokenService {
       username: userProfile.username,
       email: userProfile.email,
       role: userProfile.role,
+      profileId: userProfile.profileId,
     };
 
     const expiresIn = `${this.jwtExpirationMinutes}m`;
@@ -101,6 +97,7 @@ export class JwtService implements TokenService {
       username: userProfile.username,
       email: userProfile.email,
       role: userProfile.role,
+      profileId: userProfile.profileId,
     };
 
     const expiresIn = `${this.jwtRefreshExpirationDays}d`;
@@ -157,6 +154,7 @@ export class JwtService implements TokenService {
         username: decodedToken.username,
         email: decodedToken.email,
         role: decodedToken.role,
+        profileId: decodedToken.profileId,
       };
       return userProfile;
     } catch (error) {
