@@ -10,6 +10,12 @@ import {
 import {ConfigurationService} from '../configuration.service';
 import {TokenBlacklistService} from './jwt-blacklist.service';
 import {CustomUserProfile} from '../../types/user-types';
+import {Request, HttpErrors, Response} from '@loopback/rest';
+import {parseCookies} from '../../utils/cookie-parser';
+import {UserRepository, PlayerProfileRepository} from '../../repositories';
+import * as bcrypt from 'bcryptjs';
+import { UserCredentials } from '../../models';
+import { repository } from '@loopback/repository';
 
 @injectable({
   scope: BindingScope.TRANSIENT,
@@ -26,6 +32,10 @@ export class JwtService implements TokenService {
     @inject('services.TokenBlacklistService')
     private tokenBlacklistService: TokenBlacklistService,
   ) {
+    this.initializeConfig();
+  }
+
+  private initializeConfig(): void {
     this.jwtSecret = this.configService.get('SECRET_JWT_KEY') ?? 'secret';
     this.jwtExpirationMinutes = parseInt(
       this.configService.get('JWT_EXPIRATION_MINUTES') ?? '15',
@@ -40,100 +50,51 @@ export class JwtService implements TokenService {
   }
 
   async verifyToken(token: string): Promise<CustomUserProfile> {
+    return this.verify(token, this.jwtSecret);
+  }
+
+  async verifyRefreshToken(token: string): Promise<CustomUserProfile> {
+    return this.verify(token, this.jwtRefreshSecret);
+  }
+
+  private async verify(token: string, secret: string): Promise<CustomUserProfile> {
     if (!token) {
       throw new Error('Token is null');
     }
 
-    const isBlacklisted =
-      await this.tokenBlacklistService.isTokenBlacklisted(token);
+    const isBlacklisted = await this.tokenBlacklistService.isTokenBlacklisted(token);
     if (isBlacklisted) {
       throw new TokenBlacklistedError();
     }
 
     try {
-      const userProfile = this.getUserProfileFromToken(token);
+      const userProfile = this.getUserProfileFromToken(token, secret);
       return userProfile;
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
-        throw new TokenExpiredError();
-      } else {
-        throw new TokenInvalidError(
-          `Token verification failed: ${error.message}`,
-        );
-      }
+      this.handleTokenError(error);
     }
   }
 
   async generateToken(userProfile: CustomUserProfile): Promise<string> {
-    if (!userProfile) {
-      throw new Error('User profile is null');
-    }
-
-    const userInfoForToken = {
-      id: userProfile[securityId],
-      username: userProfile.username,
-      email: userProfile.email,
-      role: userProfile.role,
-      profileId: userProfile.profileId,
-    };
-
-    const expiresIn = `${this.jwtExpirationMinutes}m`;
-
-    try {
-      const token = jwt.sign(userInfoForToken, this.jwtSecret, {expiresIn});
-      return token;
-    } catch (error) {
-      throw new Error(`Error generating token: ${error.message}`);
-    }
+    console.log('Generating token for user:', userProfile)
+    return this.generate(userProfile, this.jwtSecret, `${this.jwtExpirationMinutes}m`);
   }
 
   async generateRefreshToken(userProfile: CustomUserProfile): Promise<string> {
+    return this.generate(userProfile, this.jwtRefreshSecret, `${this.jwtRefreshExpirationDays}d`);
+  }
+
+  private async generate(userProfile: CustomUserProfile, secret: string, expiresIn: string): Promise<string> {
     if (!userProfile) {
       throw new Error('User profile is null');
     }
 
-    const userInfoForToken = {
-      id: userProfile[securityId],
-      username: userProfile.username,
-      email: userProfile.email,
-      role: userProfile.role,
-      profileId: userProfile.profileId,
-    };
-
-    const expiresIn = `${this.jwtRefreshExpirationDays}d`;
+    const userInfoForToken = this.extractUserInfo(userProfile);
 
     try {
-      const token = jwt.sign(userInfoForToken, this.jwtRefreshSecret, {
-        expiresIn,
-      });
-      return token;
+      return jwt.sign(userInfoForToken, secret, { expiresIn });
     } catch (error) {
-      throw new Error(`Error generating refresh token: ${error.message}`);
-    }
-  }
-
-  async verifyRefreshToken(token: string): Promise<CustomUserProfile> {
-    if (!token) {
-      throw new Error('Refresh token is null');
-    }
-
-    const isBlacklisted =
-      await this.tokenBlacklistService.isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      throw new TokenBlacklistedError();
-    }
-
-    try {
-      const userProfile = this.getUserProfileFromToken(token, true);
-      return userProfile;
-    } catch (error) {
-      if (error.name === 'TokenExpiredError') {
-        throw new TokenExpiredError();
-      } else {
-        throw new TokenInvalidError(
-          `Refresh token verification failed: ${error.message}`,
-        );
-      }
+      throw new Error(`Error generating token: ${error.message}`);
     }
   }
 
@@ -145,20 +106,106 @@ export class JwtService implements TokenService {
     }
   }
 
-  getUserProfileFromToken(token: string, isRefreshToken = false): CustomUserProfile {
+  private getUserProfileFromToken(token: string, secret: string): CustomUserProfile {
     try {
-      const secret = isRefreshToken ? this.jwtRefreshSecret : this.jwtSecret;
       const decodedToken = jwt.verify(token, secret) as jwt.JwtPayload;
-      const userProfile: CustomUserProfile = {
-        [securityId]: decodedToken.id,
-        username: decodedToken.username,
-        email: decodedToken.email,
-        role: decodedToken.role,
-        profileId: decodedToken.profileId,
-      };
-      return userProfile;
+      return this.extractUserProfile(decodedToken);
     } catch (error) {
       throw new Error(`Token decoding failed: ${error.message}`);
+    }
+  }
+
+  private extractUserInfo(userProfile: CustomUserProfile): object {
+    return {
+      id: userProfile[securityId],
+      username: userProfile.username,
+      email: userProfile.email,
+      role: userProfile.role,
+      profileId: userProfile.profileId,
+    };
+  }
+
+  private extractUserProfile(decodedToken: jwt.JwtPayload): CustomUserProfile {
+    return {
+      [securityId]: decodedToken.id,
+      username: decodedToken.username,
+      email: decodedToken.email,
+      role: decodedToken.role,
+      profileId: decodedToken.profileId,
+    };
+  }
+
+  private handleTokenError(error: any): never {
+    if (error.name === 'TokenExpiredError') {
+      throw new TokenExpiredError();
+    } else {
+      throw new TokenInvalidError(`Token verification failed: ${error.message}`);
+    }
+  }
+
+  getUserProfileFromRequest(request: Request): CustomUserProfile {
+    const cookies = request.headers.cookie;
+    if (!cookies) {
+      throw new HttpErrors.Unauthorized('Token not found.');
+    }
+
+    const parsedCookies = parseCookies(cookies);
+    const token = parsedCookies['accessToken'];
+
+    if (!token) {
+      throw new HttpErrors.Unauthorized('Token not found.');
+    }
+
+    return this.decodeToken(token);
+  }
+
+  private decodeToken(token: string): CustomUserProfile {
+    try {
+      const decodedToken = jwt.verify(token, this.jwtSecret) as jwt.JwtPayload;
+      return this.extractUserProfile(decodedToken);
+    } catch (error) {
+      throw new Error(`Token decoding failed: ${error.message}`);
+    }
+  }
+
+  async logout(request: Request, response: Response, refreshToken: string): Promise<void> {
+    const cookies = request.headers.cookie;
+    if (!cookies) {
+      throw new HttpErrors.Unauthorized('Token not found.');
+    }
+
+    const parsedCookies = parseCookies(cookies);
+    const accessToken = parsedCookies['accessToken'];
+
+    if (!accessToken) {
+      throw new HttpErrors.Unauthorized('Token not found.');
+    }
+
+    try {
+      await this.blacklistToken(accessToken);
+      await this.blacklistToken(refreshToken);
+    } catch (error) {
+      // Ignore the error, as we always want to clear the cookie from the client side
+    }
+
+    response.clearCookie('accessToken');
+  }
+
+  async createTokensAndSetCookie(userProfile: CustomUserProfile, response: Response): Promise<string> {
+    try {
+      const accessToken = await this.generateToken(userProfile);
+      const refreshToken = await this.generateRefreshToken(userProfile);
+
+      response.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+      });
+
+      return refreshToken;
+    } catch (error) {
+      throw new HttpErrors.InternalServerError(`Error generating tokens: ${error.message}`);
     }
   }
 }

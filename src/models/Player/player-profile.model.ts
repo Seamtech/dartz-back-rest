@@ -1,9 +1,17 @@
-import {Entity, hasOne, belongsTo, model, property} from '@loopback/repository';
-import {User} from '../User/user.model';
-import {PlayerStatistics, PlayerStatisticsWithRelations} from './player-statistics.model';
-import {PlayerAverageStatistics, PlayerAverageStatisticsWithRelations} from './player-average-statistics.model';
+import {Entity, hasOne, belongsTo, model, property, hasMany} from '@loopback/repository';
+import {
+  User,
+  PlayerStatistics,
+  PlayerAverageStatistics,
+  TournamentDetails,
+  TournamentTeamPlayer,
+  TournamentMatch,
+  TournamentPlayerResults
+} from '../../models';
 
-@model({settings: {idInjection: false, postgresql: {schema: 'dartz', table: 'player_profiles'}, hiddenProperties: ['userId']}})
+@model({
+  settings: {idInjection: false, postgresql: {schema: 'dartz', table: 'player_profiles'}, hiddenProperties: ['userId']}
+})
 export class PlayerProfile extends Entity {
   @property({
     type: 'number',
@@ -104,6 +112,24 @@ export class PlayerProfile extends Entity {
   @hasOne(() => PlayerAverageStatistics, {keyTo: 'profileId'})
   playerAverageStatistics: PlayerAverageStatistics;
 
+  @hasMany(() => TournamentDetails, {keyTo: 'createdBy'})
+  tournamentCreatedBy: TournamentDetails[];
+
+  @hasMany(() => TournamentDetails, {keyTo: 'updatedBy'})
+  tournamentUpdatedBy: TournamentDetails[];
+
+  @hasMany(() => TournamentTeamPlayer, {keyTo: 'profileId'})
+  tournamentTeamPlayers: TournamentTeamPlayer[];
+
+  @hasMany(() => TournamentPlayerResults, {keyTo: 'profileId'})
+  tournamentPlayerResults: TournamentPlayerResults[];
+
+  @hasMany(() => TournamentMatch, {keyTo: 'createdBy'})
+  createdTournamentMatches: TournamentMatch[];
+
+  @hasMany(() => TournamentMatch, {keyTo: 'updatedBy'})
+  updatedTournamentMatches: TournamentMatch[];
+
   constructor(data?: Partial<PlayerProfile>) {
     super(data);
   }
@@ -113,6 +139,12 @@ export interface PlayerProfileRelations {
   user?: User;
   playerStatistics?: PlayerStatistics;
   playerAverageStatistics?: PlayerAverageStatistics;
+  tournamentCreatedBy?: TournamentDetails[];
+  tournamentUpdatedBy?: TournamentDetails[];
+  tournamentTeamPlayers?: TournamentTeamPlayer[];
+  tournamentPlayerResults?: TournamentPlayerResults[];
+  createdTournamentMatches?: TournamentMatch[];
+  updatedTournamentMatches?: TournamentMatch[];
 }
 
 export type PlayerProfileWithRelations = PlayerProfile & PlayerProfileRelations;

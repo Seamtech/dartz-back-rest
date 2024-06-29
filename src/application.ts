@@ -1,7 +1,8 @@
+
 import {AuthenticationComponent, registerAuthenticationStrategy} from '@loopback/authentication';
 import {JWTAuthenticationComponent, MyUserService, SECURITY_SCHEME_SPEC} from '@loopback/authentication-jwt';
 import {BootMixin} from '@loopback/boot';
-import {ApplicationConfig} from '@loopback/core';
+import {ApplicationConfig, BindingKey} from '@loopback/core';
 import {RepositoryMixin} from '@loopback/repository';
 import {MiddlewareSequence, RestApplication} from '@loopback/rest';
 import {
@@ -15,23 +16,38 @@ import {TokenAuthorizationInterceptor} from './interceptors/token-verification.i
 import {ApiKeyStrategy} from './services/authentication-strategies/api-key.service';
 import {JwtService} from './services/authentication-strategies/jwt.service';
 import {AuthorizationService} from './services/role-auth.service';
+import { Logger } from './logging/logger';
+import { LogMiddleware } from './middleware/logging.middleware';
+import { MySequence } from './newsequence';
+import { corsMiddleware } from './middleware/cors.middleware';
+import { TournamentService } from './services/tournament/tournament.service';
+import { PgsqldbDataSource } from './datasources';
 
 export {ApplicationConfig};
+export const LOGGER_BINDING = BindingKey.create<Logger>('logger');
 
 export class DartzBackendApplication extends BootMixin(
   ServiceMixin(RepositoryMixin(RestApplication)),
+  
 ) {
   constructor(options: ApplicationConfig = {}) {
     super(options);
 
     this.basePath('/api');
+    // Bind the logger
+    this.bind(LOGGER_BINDING).toClass(Logger);
 
-    // Set the sequence
-    this.sequence(MiddlewareSequence);
+    // Set up the custom sequence -> this is required for the explorer ui
+    // Breaks CORS when set, so comment out/solve for that.
+   this.sequence(MySequence);
+
+    // Register the logging middleware
+    //this.middleware(LogMiddleware);
+    //this.middleware(corsMiddleware);
+
 
     // Setup bindings
-    this.setupBindings();
-
+    this.setupBindings();        
     // Add security specifications
     this.addSecuritySpec();
 
@@ -74,10 +90,14 @@ export class DartzBackendApplication extends BootMixin(
     this.bind('services.UserService').toClass(MyUserService);
     this.bind('services.JwtService').toClass(JwtService);
     this.bind('services.AuthorizationService').toClass(AuthorizationService);
+    //this.bind('services.TournamentService').toClass(TournamentService);
 
     // Authentication
     this.bind('authentication.apiKey').to(process.env.BACKEND_API_KEY);
     this.bind('authentication.strategies.apiKeyStrategy').toClass(ApiKeyStrategy);
+
+
+    //this.dataSource(PgsqldbDataSource); // Keeping this breaks data source availibiity in rest of app.
   }
 
   addSecuritySpec() {

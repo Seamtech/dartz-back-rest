@@ -1,10 +1,9 @@
-import { inject, Interceptor, InvocationContext, InvocationResult, Provider, ValueOrPromise } from '@loopback/core';
-import { HttpErrors, Request, RestBindings } from '@loopback/rest';
-import { TokenBlacklistedError, TokenExpiredError, TokenInvalidError } from '../errors/jwt-errors';
-import { JwtService } from '../services/authentication-strategies/jwt.service';
-import { parseCookies } from '../utils/cookie-parser';
-
-const USER_PROFILE_KEY = 'userProfile';
+import {Provider, inject, Interceptor, InvocationContext, InvocationResult, ValueOrPromise} from '@loopback/core';
+import {HttpErrors, Request, RestBindings} from '@loopback/rest';
+import {TokenBlacklistedError, TokenExpiredError, TokenInvalidError} from '../errors/jwt-errors';
+import {JwtService} from '../services/authentication-strategies/jwt.service';
+import {parseCookies} from '../utils/cookie-parser';
+import {SecurityBindings} from '@loopback/security';
 
 export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
   constructor(
@@ -12,7 +11,7 @@ export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
     @inject(RestBindings.Http.REQUEST) private request: Request
   ) {}
 
-  value() {
+  value(): Interceptor {
     return this.intercept.bind(this);
   }
 
@@ -30,7 +29,7 @@ export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
     try {
       const userProfile = await this.jwtService.verifyToken(token);
       console.log('Token verified successfully:', userProfile);
-      context.bind('userProfile').to(userProfile);
+      context.bind(SecurityBindings.USER).to(userProfile);
     } catch (error) {
       console.error('Error during token verification:', error);
       if (error instanceof TokenBlacklistedError) {
@@ -54,12 +53,12 @@ export class TokenAuthorizationInterceptor implements Provider<Interceptor> {
       const accessToken = parseCookies(cookies)['accessToken'];
       if (accessToken) return accessToken;
     }
-
+/*
     const apiAccessToken = request.headers['x-api-access-token'] || '';
     if (apiAccessToken) {
-      // return apiAccessToken;
+      return apiAccessToken;
     }
-
+*/
     return undefined;
   }
 }

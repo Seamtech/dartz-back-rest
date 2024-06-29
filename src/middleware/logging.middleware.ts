@@ -1,40 +1,46 @@
-import { Middleware, MiddlewareContext } from '@loopback/rest';
-import { Next } from '@loopback/core';
-import { Provider } from '@loopback/core';
+import {Middleware, MiddlewareContext} from '@loopback/rest';
+import {Next} from '@loopback/core';
+import {LOGGER_BINDING} from '../application'; // Import the binding key for the logger
+import {Logger} from '../logging/logger';
 
-export class LoggingMiddlewareProvider implements Provider<Middleware> {
-  value(): Middleware {
-    return async (middlewareCtx: MiddlewareContext, next: Next) => {
-      const { request, response } = middlewareCtx;
+const LogMiddleware: Middleware = async (requestCtx: MiddlewareContext, next: Next) => {
+  const {request, response} = requestCtx;
+  const start = Date.now();
 
-      // Skip logging for the explorer endpoint
-      if (request.url.startsWith('/explorer')) {
-        return next();
-      }
+  // Ensure logger is bound to context and retrieve it
+  const logger: Logger = await requestCtx.get<Logger>(LOGGER_BINDING);
 
-      console.log(`LoggingMiddleware - Before: ${request.method} ${request.url}`);
+  // Logging the incoming request
+  logger.info('request', request.method, request.url, null, null, `Request: ${request.method} ${request.url}`, {
+    headers: request.headers,
+    body: request.body,
+  });
 
-      try {
-        await next();
-      } catch (err) {
-        console.error(`LoggingMiddleware - Error: ${err.message}`);
-        // Ensure the response is not blocked by rethrowing the error
-        throw err;
-      }
+  try {
+    // Proceed with the next middleware
+    await next();
+    
+    const duration = Date.now() - start;
+    // Logging the outgoing response
+    logger.info('response', request.method, request.url, response.statusCode, duration, `Response: ${request.method} ${request.url}`, {
+      statusCode: response.statusCode,
+      duration,
+      headers: response.getHeaders(),
+    });
+  } catch (err) {
+    const duration = Date.now() - start;
+    const statusCode = response.statusCode || 500;
 
-      // Check if the headers are sent to avoid further processing
-      if (!response.headersSent) {
-        console.log(`LoggingMiddleware - After: ${response.statusCode}`);
-        console.log(`LoggingMiddleware - Headers Sent: ${response.headersSent}`);
-        console.log(`LoggingMiddleware - Response Finished: ${response.finished}`);
+    // Logging error details
+    logger.error('error', request.method, request.url, statusCode, duration, `Error: ${request.method} ${request.url}`, {
+      statusCode,
+      duration,
+      headers: response.getHeaders(),
+      error: err,
+    });
 
-        // Log response headers
-        const headers = response.getHeaders();
-        console.log(`LoggingMiddleware - Response Headers: ${JSON.stringify(headers)}`);
-
-        // Log response status message
-        console.log(`LoggingMiddleware - Status Message: ${response.statusMessage}`);
-      }
-    };
+    throw err; // Rethrow the error for further handling
   }
-}
+};
+
+export {LogMiddleware};

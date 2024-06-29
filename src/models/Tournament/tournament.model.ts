@@ -1,62 +1,73 @@
-import {Entity, hasMany, model, property} from '@loopback/repository';
-import {TournamentTeams, TournamentTeamsWithRelations} from './tournament-teams.model';
-import {TournamentMatches, TournamentMatchesWithRelations} from './tournament-matches.model';
+// src/models/tournament.model.ts
 
-@model({settings: {idInjection: false, postgresql: {schema: 'dartz', table: 'tournaments'}}})
+import { Entity, model, property, hasMany, belongsTo, hasOne } from '@loopback/repository';
+import { TournamentTeam, TournamentMatch, TournamentDetails, GameType, PlayerProfile } from '../';
+
+@model({
+  settings: {
+    postgresql: {
+      schema: 'dartz',
+      table: 'tournaments',
+    },
+    hiddenProperties: [],
+  },
+})
 export class Tournament extends Entity {
   @property({
     type: 'number',
     id: true,
     generated: true,
-    postgresql: {columnName: 'id', dataType: 'integer', nullable: 'NO'},
+    postgresql: { columnName: 'id', dataType: 'integer', nullable: 'NO' }
   })
-  id: number;
+  id?: number;
 
   @property({
     type: 'string',
-    required: true,
-    postgresql: {columnName: 'name', dataType: 'character varying', nullable: 'NO'},
+    postgresql: { columnName: 'tournament_type', dataType: 'character varying', nullable: 'YES' }
   })
-  name: string;
+  tournamentType?: string;
 
   @property({
     type: 'string',
-    required: true,
-    postgresql: {columnName: 'format', dataType: 'character varying', nullable: 'NO'},
+    postgresql: { columnName: 'platform', dataType: 'character varying', nullable: 'YES' }
   })
-  format: string;
-
-  @property({
-    type: 'string',
-    required: true,
-    postgresql: {columnName: 'type', dataType: 'character varying', nullable: 'NO'},
-  })
-  type: string;
+  platform?: string;
 
   @property({
     type: 'number',
-    postgresql: {columnName: 'entry_fee', dataType: 'numeric', precision: 10, scale: 2, nullable: 'YES'},
+    postgresql: {
+      columnName: 'entry_fee_amount',
+      dataType: 'DECIMAL',
+      precision: 10,
+      scale: 2,
+      nullable: 'YES',
+    },
   })
-  entryFee?: number;
+  entryFeeAmount?: number;
 
   @property({
-    type: 'number',
-    postgresql: {columnName: 'player_rating_limit', dataType: 'numeric', precision: 5, scale: 2, nullable: 'YES'},
+    type: 'string',
+    postgresql: { columnName: 'entry_fee_type', dataType: 'character varying', nullable: 'YES' }
   })
-  playerRatingLimit?: number;
+  entryFeeType?: string;
 
   @property({
-    type: 'date',
-    required: true,
-    postgresql: {columnName: 'tournament_date', dataType: 'timestamp without time zone', nullable: 'NO'},
+    type: 'string',
+    postgresql: { columnName: 'tournament_format', dataType: 'character varying', nullable: 'YES' }
   })
-  tournamentDate: string;
+  tournamentFormat?: string;
 
-  @hasMany(() => TournamentTeams, {keyTo: 'tournamentId'})
-  tournamentTeams: TournamentTeams[];
+  @belongsTo(() => GameType, {name: 'game', keyFrom: 'gameId', keyTo: 'id'}, {postgresql: {columnName: 'game_id'}})
+  gameId: number;
 
-  @hasMany(() => TournamentMatches, {keyTo: 'tournamentId'})
-  tournamentMatches: TournamentMatches[];
+  @hasOne(() => TournamentDetails, { keyTo: 'tournamentId' })
+  details: TournamentDetails;
+
+  @hasMany(() => TournamentTeam, { keyTo: 'tournamentId' })
+  teams: TournamentTeam[];
+
+  @hasMany(() => TournamentMatch, { keyTo: 'tournamentId' })
+  matches: TournamentMatch[];
 
   constructor(data?: Partial<Tournament>) {
     super(data);
@@ -64,8 +75,10 @@ export class Tournament extends Entity {
 }
 
 export interface TournamentRelations {
-  tournamentTeams?: TournamentTeamsWithRelations[];
-  tournamentMatches?: TournamentMatchesWithRelations[];
+  teams?: TournamentTeam[];
+  matches?: TournamentMatch[];
+  details?: TournamentDetails;
+  game?: GameType;
 }
 
 export type TournamentWithRelations = Tournament & TournamentRelations;
