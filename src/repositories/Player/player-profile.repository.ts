@@ -77,6 +77,7 @@ export class PlayerProfileRepository extends DefaultCrudRepository<
     protected tournamentPlayerResultsRepositoryGetter: Getter<TournamentPlayerResultsRepository>,
     @repository.getter('TournamentMatchRepository')
     protected tournamentMatchRepositoryGetter: Getter<TournamentMatchRepository>,
+    @repository.getter('PlayerProfileRepository') protected playerProfileRepositoryGetter: Getter<PlayerProfileRepository>,
   ) {
     super(PlayerProfile, dataSource);
     this.playerStatistics = this.createHasOneRepositoryFactoryFor(
@@ -95,22 +96,7 @@ export class PlayerProfileRepository extends DefaultCrudRepository<
       'playerAverageStatistics',
       this.playerAverageStatistics.inclusionResolver,
     );
-    this.tournamentCreatedBy = this.createHasManyRepositoryFactoryFor(
-      'tournamentCreatedBy',
-      tournamentDetailsRepositoryGetter,
-    );
-    this.registerInclusionResolver(
-      'tournamentCreatedBy',
-      this.tournamentCreatedBy.inclusionResolver,
-    );
-    this.tournamentUpdatedBy = this.createHasManyRepositoryFactoryFor(
-      'tournamentUpdatedBy',
-      tournamentDetailsRepositoryGetter,
-    );
-    this.registerInclusionResolver(
-      'tournamentUpdatedBy',
-      this.tournamentUpdatedBy.inclusionResolver,
-    );
+    
 
     this.tournamentTeamPlayers = this.createHasManyRepositoryFactoryFor(
       'tournamentTeamPlayers',

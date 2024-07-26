@@ -9,12 +9,14 @@ const config = {
   user: process.env.PGUSER,
   password: process.env.PGPASSWORD,
   database: process.env.PGDATABASE,
-  timezone: "UTC",
+  timezone: 'UTC',
 };
 
 @lifeCycleObserver('datasource')
-export class PgsqldbDataSource extends juggler.DataSource
-  implements LifeCycleObserver {
+export class PgsqldbDataSource
+  extends juggler.DataSource
+  implements LifeCycleObserver
+{
   static dataSourceName = 'pgsqldb';
   static readonly defaultConfig = config;
 
@@ -23,6 +25,11 @@ export class PgsqldbDataSource extends juggler.DataSource
     dsConfig: object = config,
   ) {
     super(dsConfig);
+    this.on('connected', () => {
+      console.log('PgsqlDB is connected');
+    });
+    this.on('disconnected', () => {
+      console.log('PgsqlDB is disconnected');
+    });
   }
 }
- 

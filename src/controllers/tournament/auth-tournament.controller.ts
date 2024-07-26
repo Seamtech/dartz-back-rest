@@ -3,145 +3,36 @@ import {repository} from '@loopback/repository';
 import {
   HttpErrors,
   Request,
+  Response,
   RestBindings,
-  get,
   getModelSchemaRef,
-  param,
   post,
   requestBody,
   response,
 } from '@loopback/rest';
-import {
-  gameFields,
-  playerFields,
-  profileFields,
-  tournamentDetailsFields,
-  tournamentFields,
-  tournamentTeamFields,
-} from '../../controller-filters/tournament/getTournamentById.controller.filter';
 import {Tournament, TournamentTeamPlayer} from '../../models';
 import {
+  GameTypeRepository,
   TournamentDetailsRepository,
-  TournamentMatchRepository,
-  TournamentMatchResultsRepository,
-  TournamentPlayerResultsRepository,
   TournamentRepository,
-  TournamentTeamPlayerRepository,
-  TournamentTeamRepository,
 } from '../../repositories';
 import {JwtService} from '../../services/authentication-strategies/jwt.service';
 import {TournamentService} from '../../services/tournament/tournament.service';
-interface TeamData {
-  name: string;
-  players: Array<{
-    profileId: number;
-  }>;
-}
-export class TournamentController {
+
+export class AuthorizedTournamentController {
   constructor(
+    @repository(GameTypeRepository)
+    public gameTypeRepository: GameTypeRepository,
     @repository(TournamentRepository)
     public tournamentRepository: TournamentRepository,
-    @repository(TournamentTeamRepository)
-    public tournamentTeamRepository: TournamentTeamRepository,
-    @repository(TournamentTeamPlayerRepository)
-    public tournamentTeamPlayerRepository: TournamentTeamPlayerRepository,
-    @repository(TournamentMatchRepository)
-    public tournamentMatchRepository: TournamentMatchRepository,
     @repository(TournamentDetailsRepository)
     public tournamentDetailsRepository: TournamentDetailsRepository,
-    @repository(TournamentMatchResultsRepository)
-    public tournamentMatchResultsRepository: TournamentMatchResultsRepository,
-    @repository(TournamentPlayerResultsRepository)
-    public tournamentPlayerResultsRepository: TournamentPlayerResultsRepository,
     @inject('services.TournamentService')
     public tournamentService: TournamentService,
     @inject('services.JwtService') private jwtService: JwtService,
+    @inject(RestBindings.Http.REQUEST) private request: Request,
+    @inject(RestBindings.Http.RESPONSE) private response: Response,
   ) {}
-
-  @get('/tournaments', {
-    responses: {
-      '200': {
-        description: 'Array of Tournament model instances',
-        content: {
-          'application/json': {
-            schema: {
-              type: 'array',
-              items: getModelSchemaRef(Tournament),
-            },
-          },
-        },
-      },
-    },
-  })
-  async findTournaments(): Promise<Tournament[]> {
-    const tournaments = await this.tournamentRepository.find({
-      include: [
-        {relation: 'details'},
-        {relation: 'teams', scope: {include: ['players']}},
-        {relation: 'game'},
-      ],
-    });
-    console.log('Tournaments:', tournaments);
-    return tournaments;
-  }
-
-  @get('/tournaments/{id}', {
-    responses: {
-      '200': {
-        description: 'Tournament model instance',
-        content: {
-          'application/json': {
-            schema: getModelSchemaRef(Tournament),
-          },
-        },
-      },
-    },
-  })
-  async findTournamentById(
-    @param.path.number('id') id: number,
-  ): Promise<Tournament> {
-    const tournament = await this.tournamentRepository.findById(id, {
-      fields: tournamentFields,
-      include: [
-        {
-          relation: 'details',
-          scope: {
-            fields: tournamentDetailsFields,
-          },
-        },
-        {
-          relation: 'teams',
-          scope: {
-            fields: tournamentTeamFields,
-            include: [
-              {
-                relation: 'players',
-                scope: {
-                  fields: playerFields,
-                  include: [
-                    {
-                      relation: 'profile',
-                      scope: {
-                        fields: profileFields,
-                      },
-                    },
-                  ],
-                },
-              },
-            ],
-          },
-        },
-        {
-          relation: 'game',
-          scope: {
-            fields: gameFields,
-          },
-        },
-      ],
-    });
-    console.log('Tournament:', tournament);
-    return tournament;
-  }
 
   @intercept('interceptors.TokenAuthorizationInterceptor')
   @post('/tournaments/register-team')
@@ -179,7 +70,7 @@ export class TournamentController {
     })
     registrationData: {
       tournamentId: number;
-      team: TeamData;
+      team: any;
     },
     @inject(RestBindings.Http.REQUEST) request: Request, // Injecting request
   ): Promise<Tournament> {
@@ -203,7 +94,11 @@ export class TournamentController {
         createdBy,
       );
 
-      return this.tournamentService.registerTeam(tournamentId, team, createdBy);
+      return await this.tournamentService.registerTeam(
+        tournamentId,
+        team,
+        createdBy,
+      );
     } catch (err) {
       console.error('Error registering team:', err); // Detailed error logging
       if (err instanceof HttpErrors.HttpError) {

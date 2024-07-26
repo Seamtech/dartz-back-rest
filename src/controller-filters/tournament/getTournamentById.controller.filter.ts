@@ -30,7 +30,7 @@ export const tournamentDetailsFields: Partial<Record<keyof TournamentDetails, bo
   tournamentStatus: true,
   currentRound: true,
   winningTeamId: true,
-  createdBy: true,
+  createdById: true,
 };
 
 // Define filters for TournamentTeam

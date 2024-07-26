@@ -39,7 +39,7 @@ export class TournamentDetails extends Entity {
   @property({
     type: 'string',
     required: true,
-    postgresql: { columnName: 'scheduled_start', dataType: 'timestamp', nullable: 'NO' }
+    postgresql: { columnName: 'scheduled_start', dataType: 'character varying', nullable: 'NO' }
   })
   scheduledStart: string;
 
@@ -71,7 +71,7 @@ export class TournamentDetails extends Entity {
 
   @property({
     type: 'string',
-    postgresql: { columnName: 'completed_timestamp', dataType: 'timestamp', nullable: 'YES' }
+    postgresql: { columnName: 'completed_timestamp', dataType: 'character varying', nullable: 'YES' }
   })
   completedTimestamp?: string;
 
@@ -84,24 +84,24 @@ export class TournamentDetails extends Entity {
   @belongsTo(() => PlayerProfile, { keyFrom: 'createdBy', keyTo: 'id' }, {
     postgresql: { columnName: 'created_by', dataType: 'integer', nullable: 'NO' }
   })
-  createdBy: number;
+  createdById: number;
 
   @property({
     type: 'string',
     default: () => new Date(),
-    postgresql: { columnName: 'created_timestamp', dataType: 'timestamp', nullable: 'YES' }
+    postgresql: { columnName: 'created_timestamp', dataType: 'character varying', nullable: 'YES' }
   })
   createdTimestamp?: string;
 
   @belongsTo(() => PlayerProfile, { keyFrom: 'updatedBy', keyTo: 'id' }, {
     postgresql: { columnName: 'updated_by', dataType: 'integer', nullable: 'NO' }
   })
-  updatedBy: number;
+  updatedById: number;
 
   @property({
     type: 'string',
     default: () => new Date(),
-    postgresql: { columnName: 'updated_timestamp', dataType: 'timestamp', nullable: 'YES' }
+    postgresql: { columnName: 'updated_timestamp', dataType: 'character varying', nullable: 'YES' }
   })
   updatedTimestamp?: string;
 
@@ -112,8 +112,8 @@ export class TournamentDetails extends Entity {
 
 export interface TournamentDetailsRelations {
   tournament?: Tournament;
-  createdByProfile?: PlayerProfile;
-  updatedByProfile?: PlayerProfile;
+  createdBy?: PlayerProfile;
+  updatedBy?: PlayerProfile;
 }
 
 export type TournamentDetailsWithRelations = TournamentDetails & TournamentDetailsRelations;
